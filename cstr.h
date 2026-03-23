@@ -63,7 +63,7 @@ constexpr bool operator==(const CStr<N1, CharT>& a, const CStr<N2, CharT>& b) {
 template <typename CharT, typename ViewT, CharT... Cs>
 struct CStrWrap {
     static constexpr auto N = sizeof...(Cs);
-    CharT _str[N + 1]{ Cs... };  // Runtime storage initialized from the pack expansion
+    CharT _str[N + 1]{ Cs... }; // Runtime storage initialized from the pack expansion
 
     // Returns a string_view / wstring_view over the stored characters (no null terminator needed).
     constexpr ViewT str() const {
@@ -132,12 +132,14 @@ constexpr size_t findStr() {
 //   strcmpStr<"ABC", "ABC">()  ->  0
 //   strcmpStr<"ABC", "ABD">()  ->  negative
 //   strcmpStr<"ABD", "ABC">()  ->  positive
-template <CStr Str1, CStr Str2>
-constexpr int strcmpStr() {
+template <CStr Str1, CStr Str2,
+          typename CharT = typename decltype(Str1)::charT, typename CharT_ = typename decltype(Str2)::charT>
+constexpr int strcmpStr()
+    requires std::is_same_v<CharT, CharT_> {
     constexpr size_t len = Str1.size() < Str2.size() ? Str1.size() : Str2.size();
     for (size_t i = 0; i < len; ++i) {
         if (Str1[i] != Str2[i])
-            return static_cast<unsigned char>(Str1[i]) - static_cast<unsigned char>(Str2[i]);
+            return static_cast<int>(Str1[i] - Str2[i]);
     }
     // All compared chars equal; longer string is greater
     return static_cast<int>(Str1.size()) - static_cast<int>(Str2.size());

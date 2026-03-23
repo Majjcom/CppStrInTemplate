@@ -65,6 +65,8 @@ int main() {
 
     // wchar_t support: variadic concat of wide strings, then compare with strcmpStr
     constexpr auto wCstring = concatStr<L"你好", L"世界", L"!!">();
+    static_assert(strcmpStr<L"AA", L"AB">() < 0);
+    static_assert(strcmpStr<L"Aa", L"A">() > 0);
     static_assert(strcmpStr<wCstring, L"你好世界!!">() == 0);
     cout << "strcmpStr: wstring assertions passed" << endl;
 
