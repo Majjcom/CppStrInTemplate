@@ -93,15 +93,15 @@ constexpr auto toCs()
 // Extracts a compile-time substring. Len defaults to "rest of string".
 //   substrStr<"ABCDEF", 2, 3>()  ->  "CDE"
 //   substrStr<"ABCDEF", 4>()     ->  "EF"
-template <CStr Str, size_t Start, size_t Len = Str.size() - Start>
+template <CStr Str, size_t Start, size_t Len = Str.size() - Start, typename CharT = typename decltype(Str)::charT>
 constexpr auto substrStr() {
     static_assert(Start <= Str.size());
     static_assert(Start + Len <= Str.size());
-    char buf[Len + 1]{};
+    CharT buf[Len + 1]{};
     for (size_t i = 0; i < Len; ++i) {
         buf[i] = Str[Start + i];
     }
-    return CStr<Len + 1>(buf, Len);
+    return CStr<Len + 1, CharT>(buf, Len);
 }
 
 // Sentinel returned by findStr when the pattern is not found.
