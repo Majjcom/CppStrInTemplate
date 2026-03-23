@@ -63,7 +63,7 @@ constexpr bool operator==(const CStr<N1, CharT>& a, const CStr<N2, CharT>& b) {
 template <typename CharT, typename ViewT, CharT... Cs>
 struct CStrWrap {
     static constexpr auto N = sizeof...(Cs);
-    CharT _str[N]{ Cs... };  // Runtime storage initialized from the pack expansion
+    CharT _str[N + 1]{ Cs... };  // Runtime storage initialized from the pack expansion
 
     // Returns a string_view / wstring_view over the stored characters (no null terminator needed).
     constexpr ViewT str() const {
