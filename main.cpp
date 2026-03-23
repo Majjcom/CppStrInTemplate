@@ -1,12 +1,12 @@
 #include <iostream>
-#include "cstr.h"
+#include "tstr.h"
 
 #include <codecvt>
 
 using namespace std;
 
 // Convenience wrapper: prints a compile-time string to stdout.
-template <CStr Str>
+template <TStr Str>
 void print_template_str() {
     cout << toCs<Str>().str();
 }
@@ -47,11 +47,11 @@ int main() {
     cout << (pos2 == npos ? "npos" : "found") << endl;
 
     // operator==: same content -> true
-    static_assert(CStr("ABC") == CStr("ABC"));
+    static_assert(TStr("ABC") == TStr("ABC"));
     // operator==: different content -> false
-    static_assert(CStr("ABC") != CStr("ABD"));
+    static_assert(TStr("ABC") != TStr("ABD"));
     // operator==: different lengths -> false (cross-size free function)
-    static_assert(CStr("AB") != CStr("ABC"));
+    static_assert(TStr("AB") != TStr("ABC"));
     cout << "operator==: all assertions passed" << endl;
 
     // strcmpStr: equal strings -> 0

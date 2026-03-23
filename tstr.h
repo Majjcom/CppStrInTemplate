@@ -6,13 +6,13 @@
 // C++20 allows this struct to be used directly as a template parameter,
 // enabling string literals like template_fn<"hello">().
 template <size_t N, typename CharT = char>
-struct CStr {
+struct TStr {
     using charT = CharT;
 
     CharT _str[N]{};
 
     // Construct from a string literal: CStr<6>("hello")
-    constexpr CStr(const CharT (&str)[N]) {
+    constexpr TStr(const CharT (&str)[N]) {
         for (size_t i = 0; i < N; ++i) {
             _str[i] = str[i];
         }
@@ -20,7 +20,7 @@ struct CStr {
 
     // Construct from a pointer + length; used internally by substrStr/concatStrImpl
     // to build a CStr from a temporary buffer inside constexpr functions.
-    explicit constexpr CStr(const CharT* str, size_t len) {
+    explicit constexpr TStr(const CharT* str, size_t len) {
         for (size_t i = 0; i < len; ++i) {
             _str[i] = str[i];
         }
@@ -49,7 +49,7 @@ struct CStr {
 // member operator== only covers same-length strings. This free function
 // handles the general case different lengths are always unequal.
 template <size_t N1, size_t N2, typename CharT>
-constexpr bool operator==(const CStr<N1, CharT>& a, const CStr<N2, CharT>& b) {
+constexpr bool operator==(const TStr<N1, CharT>& a, const TStr<N2, CharT>& b) {
     if constexpr (N1 != N2) return false;
     for (size_t i = 0; i < N1 - 1; ++i) {
         if (a[i] != b[i]) return false;
@@ -61,7 +61,7 @@ constexpr bool operator==(const CStr<N1, CharT>& a, const CStr<N2, CharT>& b) {
 // making the string content part of the type itself.
 // Useful when you need the characters to participate in template deduction.
 template <typename CharT, typename ViewT, CharT... Cs>
-struct CStrWrap {
+struct TStrWrap {
     static constexpr auto N = sizeof...(Cs);
     CharT _str[N + 1]{ Cs... }; // Runtime storage initialized from the pack expansion
 
@@ -73,27 +73,27 @@ struct CStrWrap {
 
 // Converts a CStr NTTP into a CStrWrap by unpacking each character
 // using an index_sequence. This "explodes" the string into its type.
-template <CStr Str, typename CharT = typename decltype(Str)::charT>
+template <TStr Str, typename CharT = typename decltype(Str)::charT>
 constexpr auto toCs()
     requires std::is_same_v<CharT, char> {
     return [] <size_t... N>(std::index_sequence<N...>) {
-        return CStrWrap<CharT, std::string_view, Str.template get<N>()...>();
+        return TStrWrap<CharT, std::string_view, Str.template get<N>()...>();
     }(std::make_index_sequence<Str.size()>());
 }
 
 // wchar_t overload of toCs(): same mechanics, produces CStrWrap with wstring_view.
-template <CStr Str, typename CharT = typename decltype(Str)::charT>
+template <TStr Str, typename CharT = typename decltype(Str)::charT>
 constexpr auto toCs()
     requires std::is_same_v<CharT, wchar_t> {
     return [] <size_t... N>(std::index_sequence<N...>) {
-        return CStrWrap<CharT, std::wstring_view, Str.template get<N>()...>();
+        return TStrWrap<CharT, std::wstring_view, Str.template get<N>()...>();
     }(std::make_index_sequence<Str.size()>());
 }
 
 // Extracts a compile-time substring. Len defaults to "rest of string".
 //   substrStr<"ABCDEF", 2, 3>()  ->  "CDE"
 //   substrStr<"ABCDEF", 4>()     ->  "EF"
-template <CStr Str, size_t Start, size_t Len = Str.size() - Start, typename CharT = typename decltype(Str)::charT>
+template <TStr Str, size_t Start, size_t Len = Str.size() - Start, typename CharT = typename decltype(Str)::charT>
 constexpr auto substrStr() {
     static_assert(Start <= Str.size());
     static_assert(Start + Len <= Str.size());
@@ -101,7 +101,7 @@ constexpr auto substrStr() {
     for (size_t i = 0; i < Len; ++i) {
         buf[i] = Str[Start + i];
     }
-    return CStr<Len + 1, CharT>(buf, Len);
+    return TStr<Len + 1, CharT>(buf, Len);
 }
 
 // Sentinel returned by findStr when the pattern is not found.
@@ -111,7 +111,7 @@ inline constexpr size_t npos = size_t(-1);
 // Returns the starting index, or npos if not found.
 //   findStr<"ABCDEF", "CD">()  ->  2
 //   findStr<"ABCDEF", "XY">()  ->  npos
-template <CStr Str, CStr Pattern>
+template <TStr Str, TStr Pattern>
 constexpr size_t findStr() {
     if constexpr (Pattern.size() > Str.size()) return npos;
     for (size_t i = 0; i <= Str.size() - Pattern.size(); ++i) {
@@ -132,7 +132,7 @@ constexpr size_t findStr() {
 //   strcmpStr<"ABC", "ABC">()  ->  0
 //   strcmpStr<"ABC", "ABD">()  ->  negative
 //   strcmpStr<"ABD", "ABC">()  ->  positive
-template <CStr Str1, CStr Str2,
+template <TStr Str1, TStr Str2,
           typename CharT = typename decltype(Str1)::charT, typename CharT_ = typename decltype(Str2)::charT>
 constexpr int strcmpStr()
     requires std::is_same_v<CharT, CharT_> {
@@ -149,7 +149,7 @@ constexpr int strcmpStr()
 // copies both strings in, then returns a new CStr with size N1+N2-1
 // (the -1 collapses the two null terminators into one).
 template <size_t N1, size_t N2, typename CharT>
-constexpr auto concatStrImpl(const CStr<N1, CharT>& str1, const CStr<N2, CharT>& str2) {
+constexpr auto concatStrImpl(const TStr<N1, CharT>& str1, const TStr<N2, CharT>& str2) {
     CharT str[N1 + N2 - 1]{};
     for (size_t i = 0; i < str1.size(); ++i) {
         str[i] = str1[i];
@@ -159,12 +159,12 @@ constexpr auto concatStrImpl(const CStr<N1, CharT>& str1, const CStr<N2, CharT>&
     }
     str[str1.size() + str2.size()] = '\0';
 
-    return CStr<N1 + N2 - 1, CharT>(str);
+    return TStr<N1 + N2 - 1, CharT>(str);
 }
 
 // Variadic compile-time string concatenation. Folds left via recursion:
 //   concatStr<"A", "B", "C">()  ->  concatStr<concatStrImpl("A","B"), "C">()
-template <CStr Str1, CStr Str2, CStr... Rest>
+template <TStr Str1, TStr Str2, TStr... Rest>
 constexpr auto concatStr() {
     if constexpr (sizeof...(Rest) == 0) {
         return concatStrImpl(Str1, Str2);
