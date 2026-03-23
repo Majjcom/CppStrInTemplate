@@ -7,6 +7,8 @@
 // enabling string literals like template_fn<"hello">().
 template <size_t N, typename CharT = char>
 struct CStr {
+    using charT = CharT;
+
     CharT _str[N]{};
 
     // Construct from a string literal: CStr<6>("hello")
@@ -58,39 +60,34 @@ constexpr bool operator==(const CStr<N1, CharT>& a, const CStr<N2, CharT>& b) {
 // Holds a string as a variadic pack of char template arguments,
 // making the string content part of the type itself.
 // Useful when you need the characters to participate in template deduction.
-template <char... Cs>
+template <typename CharT, typename ViewT, CharT... Cs>
 struct CStrWrap {
     static constexpr auto N = sizeof...(Cs);
-    char _str[N]{ Cs... };
-    constexpr std::string_view str() const {
-        return std::string_view(_str, N);
+    CharT _str[N]{ Cs... };  // Runtime storage initialized from the pack expansion
+
+    // Returns a string_view / wstring_view over the stored characters (no null terminator needed).
+    constexpr ViewT str() const {
+        return ViewT(_str, N);
     }
 };
 
 // Converts a CStr NTTP into a CStrWrap by unpacking each character
 // using an index_sequence. This "explodes" the string into its type.
-template <CStr Str>
-constexpr auto toCs() {
-    return [] <size_t... N> (std::index_sequence<N...>) {
-        return CStrWrap<Str.template get<N>()...>();
+template <CStr Str, typename CharT = typename decltype(Str)::charT>
+constexpr auto toCs()
+    requires std::is_same_v<CharT, char> {
+    return [] <size_t... N>(std::index_sequence<N...>) {
+        return CStrWrap<CharT, std::string_view, Str.template get<N>()...>();
     }(std::make_index_sequence<Str.size()>());
 }
 
-// Two-string helper used by concatStr. Allocates a local buffer,
-// copies both strings in, then returns a new CStr with size N1+N2-1
-// (the -1 collapses the two null terminators into one).
-template <size_t N1, size_t N2>
-constexpr auto concatStrImpl(const CStr<N1>& str1, const CStr<N2>& str2) {
-    char str[N1 + N2 - 1]{};
-    for (size_t i = 0; i < str1.size(); ++i) {
-        str[i] = str1[i];
-    }
-    for (size_t i = 0; i < str2.size(); ++i) {
-        str[i + str1.size()] = str2[i];
-    }
-    str[str1.size() + str2.size()] = '\0';
-
-    return CStr<N1 + N2 - 1>(str);
+// wchar_t overload of toCs(): same mechanics, produces CStrWrap with wstring_view.
+template <CStr Str, typename CharT = typename decltype(Str)::charT>
+constexpr auto toCs()
+    requires std::is_same_v<CharT, wchar_t> {
+    return [] <size_t... N>(std::index_sequence<N...>) {
+        return CStrWrap<CharT, std::wstring_view, Str.template get<N>()...>();
+    }(std::make_index_sequence<Str.size()>());
 }
 
 // Extracts a compile-time substring. Len defaults to "rest of string".
@@ -144,6 +141,23 @@ constexpr int strcmpStr() {
     }
     // All compared chars equal; longer string is greater
     return static_cast<int>(Str1.size()) - static_cast<int>(Str2.size());
+}
+
+// Two-string helper used by concatStr. Allocates a local buffer,
+// copies both strings in, then returns a new CStr with size N1+N2-1
+// (the -1 collapses the two null terminators into one).
+template <size_t N1, size_t N2, typename CharT>
+constexpr auto concatStrImpl(const CStr<N1, CharT>& str1, const CStr<N2, CharT>& str2) {
+    CharT str[N1 + N2 - 1]{};
+    for (size_t i = 0; i < str1.size(); ++i) {
+        str[i] = str1[i];
+    }
+    for (size_t i = 0; i < str2.size(); ++i) {
+        str[i + str1.size()] = str2[i];
+    }
+    str[str1.size() + str2.size()] = '\0';
+
+    return CStr<N1 + N2 - 1, CharT>(str);
 }
 
 // Variadic compile-time string concatenation. Folds left via recursion:

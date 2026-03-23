@@ -1,6 +1,8 @@
 #include <iostream>
 #include "cstr.h"
 
+#include <codecvt>
+
 using namespace std;
 
 // Convenience wrapper: prints a compile-time string to stdout.
@@ -60,6 +62,11 @@ int main() {
     // strcmpStr: prefix is less than longer string
     static_assert(strcmpStr<"AB", "ABC">() < 0);
     cout << "strcmpStr: all assertions passed" << endl;
+
+    // wchar_t support: variadic concat of wide strings, then compare with strcmpStr
+    constexpr auto wCstring = concatStr<L"你好", L"世界", L"!!">();
+    static_assert(strcmpStr<wCstring, L"你好世界!!">() == 0);
+    cout << "strcmpStr: wstring assertions passed" << endl;
 
     return 0;
 }
